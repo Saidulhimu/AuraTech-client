@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import useAuth from '../../../hooks/useAuth'; 
+import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const AddProducts = () => {
   const { user } = useAuth();
@@ -7,30 +10,71 @@ const AddProducts = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
     reset
-  } = useForm({
-    defaultValues: {
-      sellerEmail: user?.email || '',
+  } = useForm();
+
+  // Auth Context থেকে User Email আসার পর সেশনে Auto fill করবে
+  useEffect(() => {
+    if (user?.email) {
+      setValue('sellerEmail', user.email);
     }
-  });
+  }, [user, setValue]);
 
   const onSubmit = (data) => {
-    const productPayload = {
-      ...data,
+    const product = {
+      title: data.title,
+      brand: data.brand,
       price: parseFloat(data.price),
-      stock: parseInt(data.stock, 10),
-      createdAt: new Date().toISOString()
+      stock: parseInt(data.stock),
+      category: data.category,
+      description: data.description,
+      sellerEmail: user?.email || data.sellerEmail,
+      imageUrl: data.imageUrl
     };
 
-    console.log("Submitting Product Data:", productPayload);
+    const token = localStorage.getItem('access-token');
 
+    axios.post('http://localhost:4000/add-products', product, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    .then((res) => {
+      if (res.data.insertedId) {
+        Swal.fire({
+          title: 'Success!',
+          text: 'Product added successfully.',
+          icon: 'success',
+          confirmButtonColor: '#6366f1',
+          background: '#131b2e',
+          color: '#fff'
+        });
+        reset();
+        if (user?.email) {
+          setValue('sellerEmail', user.email);
+        }
+      }
+    })
+    .catch((error) => {
+      console.error('Error adding product:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to add product. Please check backend server.';
+      
+      Swal.fire({
+        title: 'Error!',
+        text: errorMsg,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        background: '#131b2e',
+        color: '#fff'
+      });
+    });
   };
 
   return (
     <div className="w-full min-h-screen py-3 px-2 sm:px-6 sm:py-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        
         <div className="bg-[#131b2e] border border-slate-800/80 rounded-xl sm:rounded-2xl p-4 sm:p-8 md:p-10 shadow-2xl backdrop-blur-md">
           
           {/* Header Section */}
@@ -50,7 +94,7 @@ const AddProducts = () => {
           {/* Product Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
             
-            {/* Product Title & Brand (Stacks on Mobile, 2 Columns on MD screens) */}
+            {/* Title & Brand */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
@@ -83,7 +127,7 @@ const AddProducts = () => {
               </div>
             </div>
 
-            {/*Price & Stock Quantity */}
+            {/* Price & Stock */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
@@ -123,7 +167,7 @@ const AddProducts = () => {
               </div>
             </div>
 
-            {/* Category Select & Seller Email */}
+            {/* Category & Seller Email */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
@@ -161,7 +205,20 @@ const AddProducts = () => {
               </div>
             </div>
 
-            {/* Product Description */}
+            {/* Image URL */}
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
+                Image URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                {...register('imageUrl')}
+                className="w-full bg-[#1a233a] border border-slate-700/60 rounded-lg sm:rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
+              />
+            </div>
+
+            {/* Description */}
             <div>
               <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
                 Product Description <span className="text-indigo-400">*</span>
